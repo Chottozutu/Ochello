@@ -1,0 +1,12 @@
+ターミナルはUCRT64
+cd C:/SDL2
+
+コンパイル文
+g++ XXX.cpp -IC:/msys64/ucrt64/include/SDL2 -LC:/msys64/ucrt64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -o XXX.exe
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_main.h> // ← これを追加 ← これいらんかも
+#include <iostream>
+
+10/19
+オチェロ 製作開始

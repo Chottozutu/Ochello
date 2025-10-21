@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build SDL2 Project",
+            "type": "shell",
+            "command": "C:/msys64/ucrt64/bin/g++",
+            "args": [
+                "test2.cpp",
+                "-I", "C:/msys64/ucrt64/include/SDL2",
+                "-L", "C:/msys64/ucrt64/lib",
+                "-lmingw32",
+                "-lSDL2main",
+                "-lSDL2",
+                "-mwindows",
+                "-o", "${workspaceFolder}/test2.exe"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}
