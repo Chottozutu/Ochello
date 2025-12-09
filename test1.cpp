@@ -19,7 +19,7 @@ int main(int, char**) {
         return 1;
     }
 
-    SDL_Delay(2000); // 2秒間ウィンドウを表示
+    SDL_Delay(2000); // 2遘帝俣繧ｦ繧｣繝ｳ繝峨え繧定｡ｨ遉ｺ
     SDL_DestroyWindow(win);
     SDL_Quit();
     return 0;
