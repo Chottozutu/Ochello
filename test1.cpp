@@ -8,8 +8,8 @@ int main(int, char**) {
     }
 
     SDL_Window* win = SDL_CreateWindow("Hello SDL!",
-                                        SDL_WINDOWPOS_CENTERED,
-                                        SDL_WINDOWPOS_CENTERED,
+                                        SDL_WINDOWPOS_UNDEFINED,
+                                        SDL_WINDOWPOS_UNDEFINED,
                                         640, 480,
                                         SDL_WINDOW_SHOWN);
 

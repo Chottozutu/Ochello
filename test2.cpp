@@ -1,5 +1,5 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_main.h> // Å© Ç±ÇÍÇí«â¡
+#include <SDL2/SDL_main.h>
 #include <iostream>
 
 int main(int argc, char* argv[]) {
@@ -9,10 +9,10 @@ int main(int argc, char* argv[]) {
     }
 
     SDL_Window* win = SDL_CreateWindow("Test Window",
-                                       SDL_WINDOWPOS_CENTERED,
-                                       SDL_WINDOWPOS_CENTERED,
-                                       640, 480,
-                                       SDL_WINDOW_SHOWN);
+                                        SDL_WINDOWPOS_CENTERED,
+                                        SDL_WINDOWPOS_CENTERED,
+                                        640, 480,
+                                        SDL_WINDOW_SHOWN);
     if (win == nullptr) {
         std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
         SDL_Quit();
