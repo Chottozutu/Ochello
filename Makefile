@@ -1,9 +1,9 @@
 CXX = g++
 CXXFLAGS = -IC:/msys64/ucrt64/include/SDL2
-LDFLAGS = -LC:/msys64/ucrt64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image
+LDFLAGS = -LC:/msys64/ucrt64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
 
-TARGET = test1.exe
-SRC = test1.cpp
+TARGET = Ochello.exe
+SRC = main.cpp
 
 all: $(TARGET)
 

@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -34,15 +35,33 @@ void flipOthello(Piece* board[ROWS][COLS], int row, int col,
                     std::map<std::string,SDL_Texture*>& textures,
                     bool& gameOver, bool& winnerIsWhite);
 
+Mix_Chunk* moveSound = Mix_LoadWAV("./sound/move.mp3");
+Mix_Chunk* captureSound = Mix_LoadWAV("./sound/capture.mp3");
+Mix_Chunk* gameOverSound = Mix_LoadWAV("./sound/gameover.mp3");
+Mix_Chunk* flipSound = Mix_LoadWAV("./sound/flip.mp3");
+
 int main(int argc, char* argv[]) {
     bool gameOver = false;
     bool winnerIsWhite = false;
     int halfMoveClock = 0; 
     std::vector<std::string> boardHistory;
 
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     IMG_Init(IMG_INIT_PNG);
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
+
+    // --- BGM読み込み ---
+    Mix_Music* bgm = Mix_LoadMUS("./sound/bgm.mp3");
+    if(!bgm){
+        std::cerr << "Failed to load BGM: " << Mix_GetError() << std::endl;
+    }
+    Mix_PlayMusic(bgm, -1); // -1 でループ再生
 
     SDL_Window* win = SDL_CreateWindow("Chess+Othello=Ochello",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -54,7 +73,7 @@ int main(int argc, char* argv[]) {
 
     // --- 画像読み込み ---
     std::map<std::string, SDL_Texture*> textures;
-    std::string base = "C:/SDL2/img/";
+    std::string base = "./img/";
     std::string colors[2] = { "WHITE", "BLACK" };
     std::string names[6] = { "KING","QUEEN","ROOK","BISHOP","KNIGHT","PAWN" };
     for(int c=0;c<2;++c)
@@ -63,6 +82,16 @@ int main(int argc, char* argv[]) {
             textures[colors[c]+"_"+names[t]] = loadTexture(ren,path);
         }
 
+    // --- 効果音読み込み ---
+    moveSound     = Mix_LoadWAV("./sound/move.mp3");
+    captureSound  = Mix_LoadWAV("./sound/capture.mp3");
+    gameOverSound = Mix_LoadWAV("./sound/gameover.mp3");
+    flipSound     = Mix_LoadWAV("./sound/flip.mp3");
+    if(!moveSound || !captureSound || !gameOverSound){
+        std::cerr << "Failed to load sound: " << Mix_GetError() << std::endl;
+    }
+
+    // --- 駒の配置と対応付け ---
     auto place = [&](int r,int c,bool white,PieceType t){
         std::string color = white ? "WHITE" : "BLACK";
         std::string name;
@@ -95,8 +124,42 @@ int main(int argc, char* argv[]) {
     auto turnStartTime = std::chrono::steady_clock::now();
     std::pair<int,int> lastMove = {-1,-1};
 
+    bool title = true;
+    bool tutorial = true;
     bool running = true;
     SDL_Event e;
+
+    while(title){
+        while(SDL_PollEvent(&e)){
+            if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT){
+                Mix_PlayChannel(-1, moveSound, 0);
+                title = false;
+            }
+            SDL_RenderClear(ren);
+            SDL_Surface* s = IMG_Load("./img/title.png");
+            SDL_Texture* t = SDL_CreateTextureFromSurface(ren, s);
+            SDL_FreeSurface(s);
+            SDL_RenderCopy(ren, t, nullptr, nullptr);
+            SDL_RenderPresent(ren);
+            SDL_DestroyTexture(t);
+        }
+    }
+
+    while(tutorial){
+        while(SDL_PollEvent(&e)){
+            if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT){
+                Mix_PlayChannel(-1, moveSound, 0);
+                tutorial = false;
+            }
+            SDL_RenderClear(ren);
+            SDL_Surface* s = IMG_Load("./img/tutorial.png");
+            SDL_Texture* t = SDL_CreateTextureFromSurface(ren, s);
+            SDL_FreeSurface(s);
+            SDL_RenderCopy(ren, t, nullptr, nullptr);
+            SDL_RenderPresent(ren);
+            SDL_DestroyTexture(t);
+        }
+    }
 
     while(running){
         while(SDL_PollEvent(&e)){
@@ -112,10 +175,11 @@ int main(int argc, char* argv[]) {
                     }
                 } else {
                     bool moved=false;
+                    Piece* backup = nullptr;
                     for(auto& mv:legalMoves){
                         if(mv.first==row && mv.second==col){
                             Piece* p = board[selectedRow][selectedCol];
-                            Piece* backup = board[row][col];
+                            backup = board[row][col];
                             
                             // --- アンパッサン処理 ---
                             if(p->type==PAWN && board[row][col]==nullptr && selectedCol!=col){
@@ -170,6 +234,16 @@ int main(int argc, char* argv[]) {
                     }
 
                     if(moved){
+                        // --- 効果音再生 ---
+                        if (gameOver) {
+                            Mix_HaltMusic();
+                            Mix_PlayChannel(-1, gameOverSound, 0);
+                        } else if (backup) {
+                            Mix_PlayChannel(-1, captureSound, 0);
+                        } else {
+                            Mix_PlayChannel(-1, moveSound, 0);
+                        }
+
                         isWhiteTurn=!isWhiteTurn;
                         turnStartTime = std::chrono::steady_clock::now();
                         std::string serialized = serializeBoard(board,isWhiteTurn);
@@ -258,6 +332,12 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(win);
     IMG_Quit();
     TTF_Quit();
+    Mix_FreeChunk(moveSound);
+    Mix_FreeChunk(captureSound);
+    Mix_FreeChunk(gameOverSound);
+    Mix_FreeChunk(flipSound);
+    Mix_FreeMusic(bgm);
+    Mix_CloseAudio();
     SDL_Quit();
     return 0;
 }
@@ -277,31 +357,39 @@ void flipOthello(Piece* board[ROWS][COLS], int row, int col,
                     bool& gameOver, bool& winnerIsWhite) {
     bool color = board[row][col]->isWhite;
     int dir[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+    bool flippedAny = false;  // ← 反転が起きたかどうか
 
     for(auto& d:dir){
         std::vector<Piece*> toFlip;
         int r = row + d[0], c = col + d[1];
 
+        // 間の駒を一時的に格納
         while(r>=0 && r<ROWS && c>=0 && c<COLS && board[r][c]){
             if(board[r][c]->isWhite == color){
-                for(auto p: toFlip){
-                    // KINGが反転した場合はゲーム終了
-                    if(p->type == KING){
-                        gameOver = true;
-                        winnerIsWhite = color; // 移動した側の勝利
-                    }
+                // 同色の駒にぶつかった場合、間の駒をすべて反転
+                if(!toFlip.empty()){
+                    flippedAny = true;  // ← 反転あり
+                    for(auto p: toFlip){
+                        // KINGが反転した場合はゲーム終了
+                        if(p->type == KING){
+                            gameOver = true;
+                            winnerIsWhite = color; // 移動した側の勝利
+                            Mix_HaltMusic();
+                            Mix_PlayChannel(-1, gameOverSound, 0);
+                        }
 
-                    p->isWhite = color;
+                        p->isWhite = color;
 
-                    // テクスチャ更新
-                    std::string tname = (color ? "WHITE" : "BLACK");
-                    switch(p->type){
-                        case KING: p->texture = textures[tname+"_KING"]; break;
-                        case QUEEN: p->texture = textures[tname+"_QUEEN"]; break;
-                        case ROOK: p->texture = textures[tname+"_ROOK"]; break;
-                        case BISHOP: p->texture = textures[tname+"_BISHOP"]; break;
-                        case KNIGHT: p->texture = textures[tname+"_KNIGHT"]; break;
-                        case PAWN: p->texture = textures[tname+"_PAWN"]; break;
+                        // テクスチャ更新
+                        std::string tname = (color ? "WHITE" : "BLACK");
+                        switch(p->type){
+                            case KING:   p->texture = textures[tname+"_KING"]; break;
+                            case QUEEN:  p->texture = textures[tname+"_QUEEN"]; break;
+                            case ROOK:   p->texture = textures[tname+"_ROOK"]; break;
+                            case BISHOP: p->texture = textures[tname+"_BISHOP"]; break;
+                            case KNIGHT: p->texture = textures[tname+"_KNIGHT"]; break;
+                            case PAWN:   p->texture = textures[tname+"_PAWN"]; break;
+                        }
                     }
                 }
                 break;
@@ -311,7 +399,13 @@ void flipOthello(Piece* board[ROWS][COLS], int row, int col,
             r += d[0]; c += d[1];
         }
     }
+    
+    // 反転が発生した場合のみ効果音を鳴らす
+    if (flippedAny && !gameOver) {
+        Mix_PlayChannel(-1, flipSound, 0);
+    }
 }
+
 
 // --- 駒の合法手 ---
 std::vector<std::pair<int,int>> getLegalMoves(Piece* board[ROWS][COLS], Piece* p,std::pair<int,int> lastMove){
@@ -334,20 +428,58 @@ std::vector<std::pair<int,int>> getLegalMoves(Piece* board[ROWS][COLS], Piece* p
                     !board[r][1] && !board[r][2] && !board[r][3]) moves.push_back({r,2});
             }
             break;
-        case QUEEN: case ROOK: case BISHOP:{
-            int start=0,end=8,step=1;
-            if(p->type==ROOK) start=1,end=8,step=2;
-            if(p->type==BISHOP) start=0,end=8,step=2;
-            for(int i=start;i<end;i+=step){
-                int dr=dir[i][0],dc=dir[i][1],nr=r+dr,nc=c+dc;
-                while(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){
-                    if(!board[nr][nc]) moves.push_back({nr,nc});
-                    else { if(board[nr][nc]->isWhite!=p->isWhite) moves.push_back({nr,nc}); break;}
-                    nr+=dr; nc+=dc;
+        case QUEEN:
+            for (int i = 0; i < 8; ++i) {
+                int dr = dir[i][0], dc = dir[i][1];
+                int nr = r + dr, nc = c + dc;
+                while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                    if (!board[nr][nc]) moves.push_back({nr, nc});
+                    else {
+                        if (board[nr][nc]->isWhite != p->isWhite)
+                            moves.push_back({nr, nc});
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+            break;
+
+        case ROOK: {
+            int rookDirs[4] = {1, 3, 4, 6};
+            for (int i : rookDirs) {
+                int dr = dir[i][0], dc = dir[i][1];
+                int nr = r + dr, nc = c + dc;
+                while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                    if (!board[nr][nc]) moves.push_back({nr, nc});
+                    else {
+                        if (board[nr][nc]->isWhite != p->isWhite)
+                            moves.push_back({nr, nc});
+                        break;
+                    }
+                    nr += dr; nc += dc;
                 }
             }
             break;
         }
+
+        case BISHOP: {
+            int bishopDirs[4] = {0, 2, 5, 7};
+            for (int i : bishopDirs) {
+                int dr = dir[i][0], dc = dir[i][1];
+                int nr = r + dr, nc = c + dc;
+                while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                    if (!board[nr][nc]) moves.push_back({nr, nc});
+                    else {
+                        if (board[nr][nc]->isWhite != p->isWhite)
+                            moves.push_back({nr, nc});
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+            break;
+        }
+
         case KNIGHT:{
             int jmp[8][2]={{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
             for(auto& jj:jmp) add(r+jj[0],c+jj[1]);
