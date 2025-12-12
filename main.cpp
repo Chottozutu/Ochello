@@ -27,7 +27,7 @@ struct Piece {
     bool enPassantVulnerable = false; 
 };
 
-// --- プロトタイプ ---
+// --- プロトタイプ宣言 ---
 std::vector<std::pair<int,int>> getLegalMoves(Piece* board[ROWS][COLS], Piece* piece, std::pair<int,int> lastMove = {-1,-1});
 SDL_Texture* loadTexture(SDL_Renderer* ren, const std::string& path);
 std::string serializeBoard(Piece* board[ROWS][COLS], bool whiteTurn);
